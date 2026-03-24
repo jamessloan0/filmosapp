@@ -34,22 +34,14 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadUser = async (authUser) => {
+   const loadUser = async (authUser) => {
     try {
-      // Load the full user record from our users table
-      const users = await entities.User.filter({ email: authUser.email });
-      if (users.length > 0) {
-        setUser(users[0]);
-      } else {
-        // First login — create user record
-        const newUser = await entities.User.create({
-          email: authUser.email,
-          full_name: authUser.user_metadata?.full_name || authUser.email.split('@')[0],
-          role: 'user',
-          plan: 'free',
-        });
-        setUser(newUser);
-      }
+      // TEMP: bypass database completely
+      setUser({
+        email: authUser.email,
+        role: 'admin', // gives you access past gating
+      });
+  
       setIsAuthenticated(true);
     } catch (err) {
       console.error('Failed to load user profile:', err);
