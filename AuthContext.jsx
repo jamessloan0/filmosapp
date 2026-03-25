@@ -10,6 +10,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('[Auth] getSession result:', session ? `session found for ${session.user.email}` : 'no session');
       if (session?.user) {
         loadUser(session.user);
       } else {
@@ -17,7 +18,8 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[Auth] onAuthStateChange event:', event, session?.user?.email || 'no user');
       if (session?.user) {
         loadUser(session.user);
       } else {
@@ -31,21 +33,23 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const loadUser = async (authUser) => {
+    console.log('[Auth] loadUser called for:', authUser.email);
     try {
-      // The DB trigger handles creation — we just read the row here
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('email', authUser.email)
         .single();
 
+      console.log('[Auth] users table query result:', { data, error });
+
       if (error) throw error;
 
+      console.log('[Auth] setting user with role:', data.role, 'plan:', data.plan);
       setUser(data);
       setIsAuthenticated(true);
     } catch (err) {
-      console.error('Failed to load user profile:', err.message);
-      // Fall back to a minimal object so the app doesn't hard block
+      console.error('[Auth] loadUser failed:', err.message, err);
       setUser({ email: authUser.email, role: 'user', plan: 'free' });
       setIsAuthenticated(true);
     } finally {
