@@ -7,21 +7,21 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export const handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { priceId, successUrl, cancelUrl, userEmail } = JSON.parse(event.body);
+    const { priceId, successUrl, cancelUrl, userEmail } = req.body;
 
     if (!priceId || !successUrl || !cancelUrl) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Missing required parameters' }) };
+      return res.status(400).json({ error: 'Missing required parameters' });
     }
 
     // Try to get user email from Supabase JWT if provided
     let customerEmail = userEmail;
-    const token = event.headers.authorization?.replace('Bearer ', '');
+    const token = req.headers.authorization?.replace('Bearer ', '');
     if (token) {
       const { data: { user } } = await supabase.auth.getUser(token);
       if (user?.email) customerEmail = user.email;
@@ -39,9 +39,9 @@ export const handler = async (event) => {
     };
 
     const session = await stripe.checkout.sessions.create(sessionParams);
-    return { statusCode: 200, body: JSON.stringify({ url: session.url }) };
+    return res.status(200).json({ url: session.url });
   } catch (error) {
     console.error('Stripe checkout error:', error.message);
-    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    return res.status(500).json({ error: error.message });
   }
-};
+}

@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -7,38 +7,49 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export const handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method not allowed' };
+// Vercel must NOT parse the body — Stripe needs the raw bytes to verify the signature
+export const config = {
+  api: { bodyParser: false },
+};
+
+async function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).send('Method not allowed');
   }
 
-  const signature = event.headers['stripe-signature'];
+  const rawBody = await getRawBody(req);
+  const signature = req.headers['stripe-signature'];
   let stripeEvent;
 
   try {
     stripeEvent = stripe.webhooks.constructEvent(
-      event.body,
+      rawBody,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
-    return { statusCode: 400, body: 'Webhook Error' };
+    return res.status(400).send('Webhook Error');
   }
 
   try {
     if (stripeEvent.type === 'checkout.session.completed') {
       const session = stripeEvent.data.object;
       const customerEmail = session.metadata?.user_email || session.customer_email || session.customer_details?.email;
-      console.log(`checkout.session.completed — email: ${customerEmail}`);
-
       if (customerEmail) {
         const { data: users } = await supabase.from('users').select('*').eq('email', customerEmail);
         if (users?.length) {
           await supabase.from('users').update({ plan: 'pro' }).eq('id', users[0].id);
           console.log(`Upgraded ${customerEmail} to pro`);
-        } else {
-          console.error(`No user found for email ${customerEmail}`);
         }
       }
     }
@@ -46,13 +57,11 @@ export const handler = async (event) => {
     if (stripeEvent.type === 'customer.subscription.deleted') {
       const subscription = stripeEvent.data.object;
       const customer = await stripe.customers.retrieve(subscription.customer);
-      const customerEmail = customer.email;
-
-      if (customerEmail) {
-        const { data: users } = await supabase.from('users').select('*').eq('email', customerEmail);
+      if (customer.email) {
+        const { data: users } = await supabase.from('users').select('*').eq('email', customer.email);
         if (users?.length) {
           await supabase.from('users').update({ plan: 'free' }).eq('id', users[0].id);
-          console.log(`Downgraded ${customerEmail} to free`);
+          console.log(`Downgraded ${customer.email} to free`);
         }
       }
     }
@@ -60,5 +69,5 @@ export const handler = async (event) => {
     console.error('Webhook handler error:', err.message);
   }
 
-  return { statusCode: 200, body: JSON.stringify({ received: true }) };
-};
+  return res.status(200).json({ received: true });
+}

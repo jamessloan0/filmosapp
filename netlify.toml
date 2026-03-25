@@ -6,16 +6,18 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# SPA routing — all paths fall back to index.html
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[functions]
+  node_bundler = "esbuild"
 
-# Keep Netlify functions at /.netlify/functions/*
-# (this is the default, listed here for clarity)
+# Functions must be hit before the SPA catch-all
 [[redirects]]
   from = "/.netlify/functions/*"
   to = "/.netlify/functions/:splat"
   status = 200
   force = true
+
+# SPA routing — all non-function paths fall back to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -9,7 +9,6 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
-    // Check for existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         loadUser(session.user);
@@ -18,7 +17,6 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    // Listen for sign-in / sign-out events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         loadUser(session.user);
@@ -34,29 +32,40 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async (authUser) => {
     try {
-      // Upsert so first-login and returning login both work in one call
-      const { data, error } = await supabase
+      // First try to read the existing row — this preserves role/plan set manually
+      const { data: existing } = await supabase
         .from('users')
-        .upsert(
-          {
-            email: authUser.email,
-            full_name: authUser.user_metadata?.full_name || authUser.email.split('@')[0],
-          },
-          {
-            onConflict: 'email',
-            ignoreDuplicates: false,   // update full_name if it changed
-          }
-        )
+        .select('*')
+        .eq('email', authUser.email)
+        .single();
+
+      if (existing) {
+        // Row exists — just use it, don't overwrite role/plan
+        setUser(existing);
+        setIsAuthenticated(true);
+        setIsLoadingAuth(false);
+        return;
+      }
+
+      // No row yet — create one with defaults
+      const { data: created, error } = await supabase
+        .from('users')
+        .insert({
+          email: authUser.email,
+          full_name: authUser.user_metadata?.full_name || authUser.email.split('@')[0],
+          role: 'user',
+          plan: 'free',
+        })
         .select()
         .single();
 
       if (error) throw error;
 
-      setUser(data);
+      setUser(created);
       setIsAuthenticated(true);
     } catch (err) {
-      console.error('Failed to load/create user profile:', err.message);
-      // Still mark as authenticated — don't block the app on a DB error
+      console.error('Failed to load user profile:', err.message);
+      // Don't block the app — fall back to a minimal user object
       setUser({ email: authUser.email, role: 'user', plan: 'free' });
       setIsAuthenticated(true);
     } finally {

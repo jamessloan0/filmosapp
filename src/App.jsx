@@ -9,6 +9,7 @@ import ShareFile from './pages/ShareFile';
 import Landing from './pages/Landing';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import ClientPortal from './pages/ClientPortal';
 
 const { Pages, Layout } = pagesConfig;
 
@@ -16,47 +17,48 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout
   ? <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
+// Pages that are always public — no auth required
+const PublicRoutes = () => (
+  <Routes>
+    <Route path="/ClientPortal" element={<ClientPortal />} />
+    <Route path="/ShareFile" element={<ShareFile />} />
+    <Route path="/Terms" element={<Terms />} />
+    <Route path="/Privacy" element={<Privacy />} />
+    <Route path="*" element={<Landing />} />
+  </Routes>
+);
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isAuthenticated, user } = useAuth();
 
+  // Still checking session
   if (isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
       </div>
     );
   }
 
-  // Unauthenticated — show landing page for all non-public routes
+  // Not logged in
   if (!isAuthenticated) {
-    return (
-      <Routes>
-        <Route path="/ClientPortal" element={Pages['ClientPortal'] ? <Pages.ClientPortal /> : <Landing />} />
-        <Route path="/ShareFile" element={<ShareFile />} />
-        <Route path="/Terms" element={<Terms />} />
-        <Route path="/Privacy" element={<Privacy />} />
-        <Route path="*" element={<Landing />} />
-      </Routes>
-    );
+    return <PublicRoutes />;
   }
 
-  // Authenticated but not yet approved (tester/admin gating — remove if you want open access)
-  if (user && user.role !== 'admin' && user.role !== 'tester') {
-    return (
-      <Routes>
-        <Route path="/ClientPortal" element={Pages['ClientPortal'] ? <Pages.ClientPortal /> : <Landing />} />
-        <Route path="/ShareFile" element={<ShareFile />} />
-        <Route path="/Terms" element={<Terms />} />
-        <Route path="/Privacy" element={<Privacy />} />
-        <Route path="*" element={<Landing />} />
-      </Routes>
-    );
+  // Logged in but not admin/tester — still show public routes but block the main app
+  if (user?.role !== 'admin' && user?.role !== 'tester') {
+    return <PublicRoutes />;
   }
 
+  // Fully authenticated and approved
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/Landing" element={<Landing />} />
+      <Route path="/ClientPortal" element={<ClientPortal />} />
+      <Route path="/ShareFile" element={<ShareFile />} />
+      <Route path="/Terms" element={<Terms />} />
+      <Route path="/Privacy" element={<Privacy />} />
       {Object.entries(Pages).map(([name, Page]) => (
         <Route
           key={name}
@@ -68,9 +70,6 @@ const AuthenticatedApp = () => {
           }
         />
       ))}
-      <Route path="/ShareFile" element={<ShareFile />} />
-      <Route path="/Terms" element={<Terms />} />
-      <Route path="/Privacy" element={<Privacy />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
