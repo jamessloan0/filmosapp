@@ -103,4 +103,5 @@ export const entities = {
   NotificationSettings: entity('notification_settings'),
   PendingTester:        entity('pending_testers'),
   User:                 entity('users'),
+  VideoComment:         entity('video_comments'),
 };

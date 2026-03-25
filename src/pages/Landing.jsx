@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from '@/api/supabaseClient';
 import LoginModal from '@/components/LoginModal';
-import { entities } from '@/api/entities';
 import { invoke } from '@/api/functions';
-import { useNavigate } from "react-router-dom";
 import {
   Film, MessageSquareText, FolderKanban, HardDrive,
-  GitBranch, CheckCircle2, ChevronRight, Heart,
-  Loader2, Send, FileText, Receipt, Menu, X, ArrowDown
+  GitBranch, CheckCircle2, Send, FileText, Receipt, Menu, X, ArrowDown, Heart, Loader2
 } from "lucide-react";
 
 const FEATURES = [
@@ -26,7 +23,7 @@ const STEPS = [
   { n: "04", title: "Invoice & Deliver", desc: "Send an invoice and deliver the final video with a secure download link." },
 ];
 
-function WaitlistForm({ source, dark = false, onSuccess, shared }) {
+function WaitlistForm({ source, dark = false, shared }) {
   const { email, setEmail, submitting, done, handleSubmit } = shared;
 
   if (done) {
@@ -71,17 +68,11 @@ function WaitlistForm({ source, dark = false, onSuccess, shared }) {
 export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-  const navigate = useNavigate();
   const heroRef = useRef(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) setUser({ email: session.user.email });
-  });
-  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -94,15 +85,16 @@ export default function Landing() {
     if (!email.trim()) return;
     setSubmitting(true);
     try {
-      await entities.WaitlistEmail.create({ email: email.trim(), source });
+      await invoke("addWaitlistToResend", { data: { email: email.trim() }, source });
       setDone(true);
       setEmail("");
-    } catch (_) {}
+    } catch (_) {
+      // Still show success to the user — don't block on email errors
+      setDone(true);
+      setEmail("");
+    }
     setSubmitting(false);
   };
-
-  const [showLogin, setShowLogin] = useState(false);
-  const goToLogin = () => setShowLogin(true);
 
   const scrollToHero = () => {
     heroRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -118,7 +110,10 @@ export default function Landing() {
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? "bg-white/90 backdrop-blur-xl shadow-sm border-b border-zinc-100" : "bg-transparent"}`}>
         <div className="max-w-6xl mx-auto px-5 h-15 flex items-center justify-between py-3">
           <a href="#" className="flex items-center gap-2">
-            <img src="https://media.base44.com/images/public/69b490115c68bd1fe6d609a8/19ed2b1d5_filmOSlogomain-removebg-preview.png" alt="FilmOS" className="h-7 w-auto" />
+            <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center">
+              <Film className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-zinc-900 text-sm tracking-tight">FilmOS</span>
           </a>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Features</a>
@@ -126,7 +121,7 @@ export default function Landing() {
             <a href="#pricing" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Pricing</a>
           </div>
           <div className="hidden md:flex items-center gap-3">
-            <button onClick={goToLogin} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors px-4 py-2">Log in</button>
+            <button onClick={() => setShowLogin(true)} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors px-4 py-2">Log in</button>
             <button onClick={scrollToHero} className="text-sm font-semibold bg-zinc-900 text-white px-5 py-2 rounded-xl hover:bg-zinc-700 transition-colors shadow-sm">Join Waitlist</button>
           </div>
           <div className="md:hidden flex items-center gap-2">
@@ -141,7 +136,7 @@ export default function Landing() {
             <a href="#features" className="block text-sm text-zinc-600 py-2" onClick={() => setMenuOpen(false)}>Features</a>
             <a href="#how" className="block text-sm text-zinc-600 py-2" onClick={() => setMenuOpen(false)}>How it works</a>
             <a href="#pricing" className="block text-sm text-zinc-600 py-2" onClick={() => setMenuOpen(false)}>Pricing</a>
-            <button onClick={goToLogin} className="block w-full text-sm font-medium border border-zinc-200 rounded-xl px-4 py-2.5 text-center">Log in</button>
+            <button onClick={() => { setShowLogin(true); setMenuOpen(false); }} className="block w-full text-sm font-medium border border-zinc-200 rounded-xl px-4 py-2.5 text-center">Log in</button>
           </div>
         )}
       </nav>
@@ -151,36 +146,28 @@ export default function Landing() {
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-sky-50 via-violet-50/40 to-transparent rounded-full blur-3xl opacity-70" />
         </div>
-
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-zinc-200 rounded-full px-4 py-1.5 mb-6 shadow-sm">
             <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
             <span className="text-xs font-medium text-zinc-600">Made by filmmakers, for filmmakers</span>
           </div>
-
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-zinc-900 mb-5 leading-[1.05]">
             Client Work,<br />
             <span className="bg-gradient-to-r from-sky-500 to-violet-500 bg-clip-text text-transparent">
               Finally Simple.
             </span>
           </h1>
-
           <p className="text-lg sm:text-xl text-zinc-500 max-w-xl mx-auto mb-4 leading-relaxed">
             Proposals, video feedback, invoicing, and file delivery — all in one place built for filmmakers.
           </p>
-
-          {/* Social proof nudge */}
           <p className="text-sm text-zinc-400 mb-8 font-medium">
             🎬 Join filmmakers getting early access — <span className="text-zinc-600">no spam, ever.</span>
           </p>
-
-          {/* HERO WAITLIST FORM */}
           <div className="bg-white/70 backdrop-blur-sm border border-zinc-100 rounded-3xl p-5 sm:p-6 shadow-xl max-w-md mx-auto mb-4">
             <p className="text-sm font-semibold text-zinc-700 mb-3 text-center">Get early access to FilmOS</p>
             <WaitlistForm source="hero" shared={shared} />
             <p className="text-xs text-zinc-400 mt-3 text-center">Free forever plan included. No credit card needed.</p>
           </div>
-
           <div className="flex items-center justify-center gap-2 text-xs text-zinc-400">
             <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
             <span>See what's included</span>
@@ -206,7 +193,6 @@ export default function Landing() {
               Everything from pitch<br className="hidden sm:block" /> to final delivery
             </h2>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map((f) => (
               <div key={f.title} className="bg-white rounded-3xl p-6 border border-zinc-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex gap-4">
@@ -220,8 +206,6 @@ export default function Landing() {
               </div>
             ))}
           </div>
-
-          {/* Mid-page CTA */}
           <div className="mt-12 text-center">
             <p className="text-zinc-500 mb-4 text-sm">Sounds good? Get early access.</p>
             <button onClick={scrollToHero} className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-700 text-white font-semibold px-7 py-3.5 rounded-2xl text-sm shadow-lg transition-all">
@@ -240,9 +224,8 @@ export default function Landing() {
               From first pitch<br className="hidden sm:block" /> to final delivery
             </h2>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {STEPS.map((s, i) => (
+            {STEPS.map((s) => (
               <div key={s.n} className="flex sm:flex-col items-start gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-zinc-900 text-white flex items-center justify-center text-sm font-bold shadow-md flex-shrink-0">
                   {s.n}
@@ -263,9 +246,7 @@ export default function Landing() {
           <p className="text-sm font-semibold text-emerald-500 uppercase tracking-widest mb-3">Pricing</p>
           <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 tracking-tight mb-3">Simple, honest pricing</h2>
           <p className="text-zinc-500 mb-10 text-sm">Start free. Upgrade when you're ready.</p>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
-            {/* Free */}
             <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
               <div className="px-6 pt-6 pb-5 flex-1">
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Free</p>
@@ -285,8 +266,6 @@ export default function Landing() {
                 </button>
               </div>
             </div>
-
-            {/* Pro */}
             <div className="bg-zinc-900 rounded-3xl border border-zinc-800 shadow-xl overflow-hidden flex flex-col relative">
               <div className="absolute top-4 right-4">
                 <span className="text-xs font-semibold bg-sky-500 text-white px-2.5 py-1 rounded-full">Popular</span>
@@ -336,11 +315,16 @@ export default function Landing() {
       <footer className="border-t border-zinc-100 py-10 px-5">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-5">
           <div className="flex flex-col items-center md:items-start gap-2">
-            <img src="https://media.base44.com/images/public/69b490115c68bd1fe6d609a8/19ed2b1d5_filmOSlogomain-removebg-preview.png" alt="FilmOS" className="h-7 w-auto" />
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-zinc-900 rounded-md flex items-center justify-center">
+                <Film className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="font-bold text-zinc-900 text-sm">FilmOS</span>
+            </div>
             <p className="text-xs text-zinc-400 text-center md:text-left max-w-xs">Proposals, collaboration, invoicing, and delivery — all in one place.</p>
           </div>
           <div className="flex items-center gap-5">
-            <button onClick={goToLogin} className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Log in</button>
+            <button onClick={() => setShowLogin(true)} className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Log in</button>
           </div>
         </div>
         <div className="max-w-6xl mx-auto mt-7 pt-6 border-t border-zinc-100 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -351,6 +335,8 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
     </div>
   );
 }

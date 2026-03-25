@@ -23,6 +23,10 @@ create policy "Users can read their own record"
   on public.users for select
   using (auth.jwt() ->> 'email' = email);
 
+create policy "Users can insert their own record"
+  on public.users for insert
+  with check (auth.jwt() ->> 'email' = email);
+
 create policy "Users can update their own record"
   on public.users for update
   using (auth.jwt() ->> 'email' = email);
@@ -271,6 +275,36 @@ alter table public.pending_testers enable row level security;
 
 -- Only admins can manage this table (enforced in Netlify function, not RLS)
 -- Grant service role full access via the function layer.
+
+
+-- ─────────────────────────────────────────────
+-- VIDEO COMMENTS
+-- ─────────────────────────────────────────────
+create table if not exists public.video_comments (
+  id            uuid primary key default gen_random_uuid(),
+  file_id       uuid not null references public.project_files(id) on delete cascade,
+  project_id    uuid not null references public.projects(id) on delete cascade,
+  timestamp     numeric,
+  content       text not null,
+  author_name   text,
+  author_type   text not null default 'filmmaker',  -- 'filmmaker' | 'client'
+  resolved      boolean not null default false,
+  created_at    timestamptz not null default now()
+);
+
+alter table public.video_comments enable row level security;
+
+create policy "Project owners can manage video comments"
+  on public.video_comments for all
+  using (
+    exists (
+      select 1 from public.projects
+      where id = video_comments.project_id
+      and owner_email = auth.jwt() ->> 'email'
+    )
+  );
+
+create index if not exists idx_video_comments_file_id on public.video_comments(file_id);
 
 -- ─────────────────────────────────────────────
 -- REALTIME: enable for live messaging

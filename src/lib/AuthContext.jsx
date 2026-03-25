@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/api/supabaseClient';
-import { entities } from '@/api/entities';
 
 const AuthContext = createContext();
 
@@ -8,10 +7,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(false);
 
   useEffect(() => {
-    // Get initial session
+    // Check for existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         loadUser(session.user);
@@ -20,7 +18,7 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    // Listen for auth changes
+    // Listen for sign-in / sign-out events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         loadUser(session.user);
@@ -34,17 +32,33 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-   const loadUser = async (authUser) => {
+  const loadUser = async (authUser) => {
     try {
-      // TEMP: bypass database completely
-      setUser({
-        email: authUser.email,
-        role: 'admin', // gives you access past gating
-      });
-  
+      // Upsert so first-login and returning login both work in one call
+      const { data, error } = await supabase
+        .from('users')
+        .upsert(
+          {
+            email: authUser.email,
+            full_name: authUser.user_metadata?.full_name || authUser.email.split('@')[0],
+          },
+          {
+            onConflict: 'email',
+            ignoreDuplicates: false,   // update full_name if it changed
+          }
+        )
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setUser(data);
       setIsAuthenticated(true);
     } catch (err) {
-      console.error('Failed to load user profile:', err);
+      console.error('Failed to load/create user profile:', err.message);
+      // Still mark as authenticated — don't block the app on a DB error
+      setUser({ email: authUser.email, role: 'user', plan: 'free' });
+      setIsAuthenticated(true);
     } finally {
       setIsLoadingAuth(false);
     }
@@ -54,9 +68,7 @@ export const AuthProvider = ({ children }) => {
     await supabase.auth.signOut();
     setUser(null);
     setIsAuthenticated(false);
-    if (shouldRedirect) {
-      window.location.href = '/';
-    }
+    if (shouldRedirect) window.location.href = '/';
   };
 
   const navigateToLogin = () => {
@@ -68,7 +80,7 @@ export const AuthProvider = ({ children }) => {
       user,
       isAuthenticated,
       isLoadingAuth,
-      isLoadingPublicSettings,
+      isLoadingPublicSettings: false,
       authError: null,
       appPublicSettings: null,
       logout,
