@@ -61,7 +61,8 @@ export default function CreateProject() {
       description: "Project created",
       actor_name: user.full_name || user.email,
     });
-
+    console.log("owner_email: " + owner_email);
+    console.log("user.email: " + user.email);
     setCreated(project);
     setCreating(false);
   };
