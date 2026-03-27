@@ -54,7 +54,7 @@ export default function Dashboard() {
 
   const handleNewProject = () => {
     // Free tier: allow only 1 project
-    if (!isPro && activeProjects.length >= 1) {
+    if (!isPro && activeProjects.length > 1) {
       setShowUpgrade(true);
       return;
     }
