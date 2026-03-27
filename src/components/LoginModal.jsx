@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 
 export default function LoginModal({ onClose }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,11 +23,15 @@ export default function LoginModal({ onClose }) {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        onClose?.();
+        // Don't call onClose() here — let onAuthStateChange in AuthContext
+        // update isAuthenticated, which causes App.jsx to re-render automatically.
+        // The modal will unmount naturally when Landing is replaced by the app.
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         setSuccess('Check your email to confirm your account, then log in.');
+        setLoading(false);
+        return;
       }
     } catch (err) {
       setError(err.message);
@@ -38,7 +42,7 @@ export default function LoginModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm relative">
         <h2 className="text-xl font-bold text-zinc-900 mb-6">
           {mode === 'login' ? 'Log in to FilmOS' : 'Create your account'}
         </h2>
@@ -75,7 +79,7 @@ export default function LoginModal({ onClose }) {
             disabled={loading}
             className="w-full bg-zinc-900 hover:bg-zinc-800 rounded-xl h-11 font-semibold"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             {mode === 'login' ? 'Log in' : 'Create account'}
           </Button>
         </form>
@@ -83,6 +87,7 @@ export default function LoginModal({ onClose }) {
         <p className="text-sm text-zinc-500 text-center mt-4">
           {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
           <button
+            type="button"
             onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setSuccess(''); }}
             className="text-zinc-900 font-medium hover:underline"
           >
@@ -90,14 +95,13 @@ export default function LoginModal({ onClose }) {
           </button>
         </p>
 
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 text-sm"
-          >
-            ✕
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 text-lg leading-none"
+        >
+          ✕
+        </button>
       </div>
     </div>
   );

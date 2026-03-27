@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import ShareFile from './pages/ShareFile';
@@ -40,10 +40,11 @@ const AuthenticatedApp = () => {
     );
   }
 
+  // Authenticated — redirect root and landing to Dashboard
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/Landing" element={<Landing />} />
+      <Route path="/" element={<Navigate to="/Dashboard" replace />} />
+      <Route path="/Landing" element={<Navigate to="/Dashboard" replace />} />
       <Route path="/ClientPortal" element={<ClientPortal />} />
       <Route path="/ShareFile" element={<ShareFile />} />
       <Route path="/Terms" element={<Terms />} />
