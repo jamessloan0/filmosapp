@@ -17,21 +17,9 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout
   ? <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
-// Pages that are always public — no auth required
-const PublicRoutes = () => (
-  <Routes>
-    <Route path="/ClientPortal" element={<ClientPortal />} />
-    <Route path="/ShareFile" element={<ShareFile />} />
-    <Route path="/Terms" element={<Terms />} />
-    <Route path="/Privacy" element={<Privacy />} />
-    <Route path="*" element={<Landing />} />
-  </Routes>
-);
-
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isAuthenticated, user } = useAuth();
+  const { isLoadingAuth, isAuthenticated } = useAuth();
 
-  // Still checking session
   if (isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
@@ -40,17 +28,18 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Not logged in
   if (!isAuthenticated) {
-    return <PublicRoutes />;
+    return (
+      <Routes>
+        <Route path="/ClientPortal" element={<ClientPortal />} />
+        <Route path="/ShareFile" element={<ShareFile />} />
+        <Route path="/Terms" element={<Terms />} />
+        <Route path="/Privacy" element={<Privacy />} />
+        <Route path="*" element={<Landing />} />
+      </Routes>
+    );
   }
 
-  // Logged in but not admin/tester — still show public routes but block the main app
-  if (user?.role !== 'admin' && user?.role !== 'tester') {
-    return <PublicRoutes />;
-  }
-
-  // Fully authenticated and approved
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
