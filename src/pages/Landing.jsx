@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import { supabase } from '@/api/supabaseClient';
+import React, { useState, useEffect } from "react";
 import LoginModal from '@/components/LoginModal';
-import { invoke } from '@/api/functions';
 import {
   Film, MessageSquareText, FolderKanban, HardDrive,
-  GitBranch, CheckCircle2, Send, FileText, Receipt, Menu, X, ArrowDown, Heart, Loader2
+  GitBranch, CheckCircle2, FileText, Receipt, Menu, X, Heart, ArrowDown
 } from "lucide-react";
 
 const FEATURES = [
@@ -23,85 +21,16 @@ const STEPS = [
   { n: "04", title: "Invoice & Deliver", desc: "Send an invoice and deliver the final video with a secure download link." },
 ];
 
-function WaitlistForm({ source, dark = false, shared }) {
-  const { email, setEmail, submitting, done, handleSubmit } = shared;
-
-  if (done) {
-    return (
-      <div className={`inline-flex items-center gap-2 font-semibold px-6 py-4 rounded-2xl text-base ${dark ? "bg-emerald-500/20 border border-emerald-400/40 text-emerald-300" : "bg-emerald-50 border border-emerald-200 text-emerald-700"}`}>
-        <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-        You're on the list — we'll be in touch!
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={(e) => handleSubmit(e, source)} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full max-w-md mx-auto">
-      <input
-        id={source === "hero" ? "hero-email" : undefined}
-        type="email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Enter your email address"
-        className={`flex-1 px-5 py-4 rounded-2xl border text-sm outline-none transition-colors ${
-          dark
-            ? "border-zinc-700 bg-zinc-800 text-white placeholder-zinc-500 focus:border-sky-500"
-            : "border-zinc-200 bg-white text-zinc-900 placeholder-zinc-400 focus:border-sky-400 shadow-sm"
-        }`}
-      />
-      <button
-        type="submit"
-        disabled={submitting}
-        className={`flex items-center justify-center gap-2 font-semibold px-7 py-4 rounded-2xl text-sm transition-all duration-200 whitespace-nowrap disabled:opacity-60 shadow-lg ${
-          dark
-            ? "bg-white hover:bg-zinc-100 text-zinc-900"
-            : "bg-zinc-900 hover:bg-zinc-700 text-white"
-        }`}
-      >
-        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Join Waitlist</>}
-      </button>
-    </form>
-  );
-}
-
 export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [email, setEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
-  const heroRef = useRef(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  const handleSubmit = async (e, source = "hero") => {
-    e?.preventDefault();
-    if (!email.trim()) return;
-    setSubmitting(true);
-    try {
-      await invoke("addWaitlistToResend", { data: { email: email.trim() }, source });
-      setDone(true);
-      setEmail("");
-    } catch (_) {
-      // Still show success to the user — don't block on email errors
-      setDone(true);
-      setEmail("");
-    }
-    setSubmitting(false);
-  };
-
-  const scrollToHero = () => {
-    heroRef.current?.scrollIntoView({ behavior: "smooth" });
-    setTimeout(() => document.getElementById("hero-email")?.focus(), 600);
-  };
-
-  const shared = { email, setEmail, submitting, done, handleSubmit };
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 overflow-x-hidden">
@@ -122,10 +51,10 @@ export default function Landing() {
           </div>
           <div className="hidden md:flex items-center gap-3">
             <button onClick={() => setShowLogin(true)} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors px-4 py-2">Log in</button>
-            <button onClick={scrollToHero} className="text-sm font-semibold bg-zinc-900 text-white px-5 py-2 rounded-xl hover:bg-zinc-700 transition-colors shadow-sm">Join Waitlist</button>
+            <button onClick={() => setShowLogin(true)} className="text-sm font-semibold bg-zinc-900 text-white px-5 py-2 rounded-xl hover:bg-zinc-700 transition-colors shadow-sm">Get started</button>
           </div>
           <div className="md:hidden flex items-center gap-2">
-            <button onClick={scrollToHero} className="text-xs font-semibold bg-zinc-900 text-white px-4 py-2 rounded-xl">Join Waitlist</button>
+            <button onClick={() => setShowLogin(true)} className="text-xs font-semibold bg-zinc-900 text-white px-4 py-2 rounded-xl">Get started</button>
             <button className="p-2" onClick={() => setMenuOpen(o => !o)}>
               {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -142,7 +71,7 @@ export default function Landing() {
       </nav>
 
       {/* ── HERO ── */}
-      <section ref={heroRef} className="relative pt-28 pb-20 px-5 overflow-hidden">
+      <section className="relative pt-28 pb-20 px-5 overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-sky-50 via-violet-50/40 to-transparent rounded-full blur-3xl opacity-70" />
         </div>
@@ -157,18 +86,24 @@ export default function Landing() {
               Finally Simple.
             </span>
           </h1>
-          <p className="text-lg sm:text-xl text-zinc-500 max-w-xl mx-auto mb-4 leading-relaxed">
+          <p className="text-lg sm:text-xl text-zinc-500 max-w-xl mx-auto mb-10 leading-relaxed">
             Proposals, video feedback, invoicing, and file delivery — all in one place built for filmmakers.
           </p>
-          <p className="text-sm text-zinc-400 mb-8 font-medium">
-            🎬 Join filmmakers getting early access — <span className="text-zinc-600">no spam, ever.</span>
-          </p>
-          <div className="bg-white/70 backdrop-blur-sm border border-zinc-100 rounded-3xl p-5 sm:p-6 shadow-xl max-w-md mx-auto mb-4">
-            <p className="text-sm font-semibold text-zinc-700 mb-3 text-center">Get early access to FilmOS</p>
-            <WaitlistForm source="hero" shared={shared} />
-            <p className="text-xs text-zinc-400 mt-3 text-center">Free forever plan included. No credit card needed.</p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => setShowLogin(true)}
+              className="bg-zinc-900 hover:bg-zinc-700 text-white font-semibold px-8 py-4 rounded-2xl text-sm shadow-lg transition-all"
+            >
+              Get started free
+            </button>
+            <a
+              href="#features"
+              className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors px-4 py-4"
+            >
+              See how it works
+            </a>
           </div>
-          <div className="flex items-center justify-center gap-2 text-xs text-zinc-400">
+          <div className="flex items-center justify-center gap-2 text-xs text-zinc-400 mt-8">
             <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
             <span>See what's included</span>
           </div>
@@ -206,12 +141,6 @@ export default function Landing() {
               </div>
             ))}
           </div>
-          <div className="mt-12 text-center">
-            <p className="text-zinc-500 mb-4 text-sm">Sounds good? Get early access.</p>
-            <button onClick={scrollToHero} className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-700 text-white font-semibold px-7 py-3.5 rounded-2xl text-sm shadow-lg transition-all">
-              <Send className="w-4 h-4" /> Join the Waitlist
-            </button>
-          </div>
         </div>
       </section>
 
@@ -247,6 +176,8 @@ export default function Landing() {
           <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 tracking-tight mb-3">Simple, honest pricing</h2>
           <p className="text-zinc-500 mb-10 text-sm">Start free. Upgrade when you're ready.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
+
+            {/* Free */}
             <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
               <div className="px-6 pt-6 pb-5 flex-1">
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Free</p>
@@ -261,17 +192,26 @@ export default function Landing() {
                 </ul>
               </div>
               <div className="px-6 pb-6">
-                <button onClick={scrollToHero} className="w-full border border-zinc-200 hover:border-zinc-300 text-zinc-700 font-semibold py-3 rounded-2xl text-sm transition-colors">
-                  Join Waitlist
+                <button onClick={() => setShowLogin(true)} className="w-full border border-zinc-200 hover:border-zinc-300 text-zinc-700 font-semibold py-3 rounded-2xl text-sm transition-colors">
+                  Get started free
                 </button>
               </div>
             </div>
+
+            {/* Pro */}
             <div className="bg-zinc-900 rounded-3xl border border-zinc-800 shadow-xl overflow-hidden flex flex-col relative">
               <div className="absolute top-4 right-4">
                 <span className="text-xs font-semibold bg-sky-500 text-white px-2.5 py-1 rounded-full">Popular</span>
               </div>
               <div className="px-6 pt-6 pb-5 flex-1">
                 <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Pro</p>
+                <div className="mb-1">
+                  <span className="text-3xl font-bold text-white">$29</span>
+                  <span className="text-base font-normal text-zinc-400"> / month</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-3 py-1 mb-4">
+                  <span className="text-xs font-semibold text-emerald-400">$300 / year — save $48</span>
+                </div>
                 <p className="text-sm text-zinc-400 mb-5">For filmmakers running a real business.</p>
                 <ul className="space-y-2.5">
                   {["Unlimited projects", "Unlimited clients", "Unlimited invoices", "File uploads up to 20 GB", "Priority support"].map((item) => (
@@ -282,11 +222,12 @@ export default function Landing() {
                 </ul>
               </div>
               <div className="px-6 pb-6">
-                <button onClick={scrollToHero} className="w-full bg-white hover:bg-zinc-100 text-zinc-900 font-semibold py-3 rounded-2xl text-sm transition-colors shadow-md">
-                  Join Waitlist
+                <button onClick={() => setShowLogin(true)} className="w-full bg-white hover:bg-zinc-100 text-zinc-900 font-semibold py-3 rounded-2xl text-sm transition-colors shadow-md">
+                  Get started
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       </section>
@@ -301,12 +242,14 @@ export default function Landing() {
               Run your film business<br className="hidden sm:block" /> like a pro.
             </h2>
             <p className="relative text-zinc-400 mb-8 text-sm sm:text-base">
-              Join filmmakers who use FilmOS to win more clients and deliver work they're proud of.
+              Everything you need to win clients, deliver great work, and get paid.
             </p>
-            <div className="relative">
-              <WaitlistForm source="cta" dark shared={shared} />
-            </div>
-            <p className="relative text-xs text-zinc-600 mt-4">No spam. Unsubscribe anytime.</p>
+            <button
+              onClick={() => setShowLogin(true)}
+              className="relative bg-white hover:bg-zinc-100 text-zinc-900 font-semibold px-8 py-4 rounded-2xl text-sm shadow-lg transition-all"
+            >
+              Get started free
+            </button>
           </div>
         </div>
       </section>
